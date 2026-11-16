@@ -6,6 +6,8 @@ import components.simplereader.SimpleReader1L;
 import components.simplewriter.SimpleWriter;
 import components.simplewriter.SimpleWriter1L;
 import components.statement.Statement;
+import components.statement.Statement1;
+import components.utilities.Reporter;
 import components.utilities.Tokenizer;
 
 /**
@@ -49,17 +51,35 @@ public final class Program1Parse1 extends Program1 {
      *  [report an appropriate error message to the console and terminate client]
      * </pre>
      */
-    private static String parseInstruction(Queue<String> tokens,
-            Statement body) {
+    private static String parseInstruction(Queue<String> tokens, Statement body) {
         assert tokens != null : "Violation of: tokens is not null";
         assert body != null : "Violation of: body is not null";
-        assert tokens.length() > 0 && tokens.front().equals("INSTRUCTION") : ""
-                + "Violation of: <\"INSTRUCTION\"> is proper prefix of tokens";
+        assert tokens.length() > 0 && tokens.front().equals("INSTRUCTION")
+                : "" + "Violation of: <\"INSTRUCTION\"> is proper prefix of tokens";
 
-        // TODO - fill in body
+        tokens.dequeue(); // consume INSTRUCTION
 
-        // This line added just to make the program compilable.
-        return null;
+        String name = tokens.dequeue();
+        Reporter.assertElseFatalError(Tokenizer.isIdentifier(name),
+                "Expected instruction name");
+
+        Reporter.assertElseFatalError(!name.equals("move") && !name.equals("turnleft")
+                && !name.equals("turnright") && !name.equals("infect")
+                && !name.equals("skip"), "Instruction name cannot be primitive");
+
+        String token = tokens.dequeue();
+        Reporter.assertElseFatalError(token.equals("IS"), "Expected IS");
+
+        body.parseBlock(tokens);
+
+        token = tokens.dequeue();
+        Reporter.assertElseFatalError(token.equals("END"), "Expected END");
+
+        String closingName = tokens.dequeue();
+        Reporter.assertElseFatalError(closingName.equals(name),
+                "Instruction names do not match");
+
+        return name;
     }
 
     /*
@@ -88,11 +108,33 @@ public final class Program1Parse1 extends Program1 {
     @Override
     public void parse(Queue<String> tokens) {
         assert tokens != null : "Violation of: tokens is not null";
-        assert tokens.length() > 0 : ""
-                + "Violation of: Tokenizer.END_OF_INPUT is a suffix of tokens";
+        assert tokens.length() > 0
+                : "" + "Violation of: Tokenizer.END_OF_INPUT is a suffix of tokens";
+        // read the program
+        String token = tokens.dequeue();
+        Reporter.assertElseFatalError(token.equals("PROGRAM"), "Expected PROGRAM");
 
-        // TODO - fill in body
+        // read the program name
+        String programName = tokens.dequeue();
+        Reporter.assertElseFatalError(Tokenizer.isIdentifier(programName),
+                "Expected program name");
 
+        // check IS
+        token = tokens.dequeue();
+        Reporter.assertElseFatalError(token.equals("IS"), "Expected IS");
+
+        // read the instructions and main block
+        while (tokens.front().equals("INSTRUCTION")) {
+            Statement body = new Statement1();
+            String instructionName = parseInstruction(tokens, body);
+            //add instructionName and body
+            token = tokens.dequeue();
+            Reporter.assertElseFatalError(token.equals("END"), "Expected END");
+
+            String closingName = tokens.dequeue();
+            Reporter.assertElseFatalError(closingName.equals(programName),
+                    "Program names do not match");
+        }
     }
 
     /*
