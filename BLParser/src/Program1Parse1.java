@@ -1,3 +1,4 @@
+import components.map.Map;
 import components.program.Program;
 import components.program.Program1;
 import components.queue.Queue;
@@ -57,7 +58,7 @@ public final class Program1Parse1 extends Program1 {
         assert tokens.length() > 0 && tokens.front().equals("INSTRUCTION")
                 : "" + "Violation of: <\"INSTRUCTION\"> is proper prefix of tokens";
 
-        tokens.dequeue(); // consume INSTRUCTION
+        tokens.dequeue(); // INSTRUCTION
 
         String name = tokens.dequeue();
         Reporter.assertElseFatalError(Tokenizer.isIdentifier(name),
@@ -70,7 +71,9 @@ public final class Program1Parse1 extends Program1 {
         String token = tokens.dequeue();
         Reporter.assertElseFatalError(token.equals("IS"), "Expected IS");
 
-        body.parseBlock(tokens);
+        Statement1 parsedBody = new Statement1();
+        parsedBody.parseBlock(tokens);
+        body.transferFrom(parsedBody);
 
         token = tokens.dequeue();
         Reporter.assertElseFatalError(token.equals("END"), "Expected END");
@@ -81,7 +84,6 @@ public final class Program1Parse1 extends Program1 {
 
         return name;
     }
-
     /*
      * Constructors -----------------------------------------------------------
      */
@@ -110,31 +112,53 @@ public final class Program1Parse1 extends Program1 {
         assert tokens != null : "Violation of: tokens is not null";
         assert tokens.length() > 0
                 : "" + "Violation of: Tokenizer.END_OF_INPUT is a suffix of tokens";
-        // read the program
+
         String token = tokens.dequeue();
         Reporter.assertElseFatalError(token.equals("PROGRAM"), "Expected PROGRAM");
 
-        // read the program name
         String programName = tokens.dequeue();
         Reporter.assertElseFatalError(Tokenizer.isIdentifier(programName),
                 "Expected program name");
 
-        // check IS
         token = tokens.dequeue();
         Reporter.assertElseFatalError(token.equals("IS"), "Expected IS");
 
-        // read the instructions and main block
+        Program parsed = new Program1();
+        parsed.setName(programName);
+
+        Map<String, Statement> context = parsed.newContext();
+
         while (tokens.front().equals("INSTRUCTION")) {
             Statement body = new Statement1();
             String instructionName = parseInstruction(tokens, body);
-            //add instructionName and body
-            token = tokens.dequeue();
-            Reporter.assertElseFatalError(token.equals("END"), "Expected END");
 
-            String closingName = tokens.dequeue();
-            Reporter.assertElseFatalError(closingName.equals(programName),
-                    "Program names do not match");
+            Reporter.assertElseFatalError(!context.hasKey(instructionName),
+                    "Duplicate instruction name");
+
+            context.add(instructionName, body);
         }
+
+        parsed.swapContext(context);
+
+        token = tokens.dequeue();
+        Reporter.assertElseFatalError(token.equals("BEGIN"), "Expected BEGIN");
+
+        Statement mainBody = new Statement1();
+        mainBody.parseBlock(tokens);
+        parsed.swapBody(mainBody);
+
+        token = tokens.dequeue();
+        Reporter.assertElseFatalError(token.equals("END"), "Expected END");
+
+        String closingName = tokens.dequeue();
+        Reporter.assertElseFatalError(closingName.equals(programName),
+                "Program names do not match");
+
+        token = tokens.dequeue();
+        Reporter.assertElseFatalError(token.equals(Tokenizer.END_OF_INPUT),
+                "Unexpected extra input");
+
+        this.transferFrom(parsed);
     }
 
     /*
