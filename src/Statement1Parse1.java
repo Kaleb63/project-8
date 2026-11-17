@@ -5,6 +5,7 @@ import components.simplewriter.SimpleWriter;
 import components.simplewriter.SimpleWriter1L;
 import components.statement.Statement;
 import components.statement.Statement1;
+import components.utilities.Reporter;
 import components.utilities.Tokenizer;
 
 /**
@@ -31,8 +32,7 @@ public final class Statement1Parse1 extends Statement1 {
      */
     private static Condition parseCondition(String c) {
         assert c != null : "Violation of: c is not null";
-        assert Tokenizer
-                .isCondition(c) : "Violation of: c is a condition string";
+        assert Tokenizer.isCondition(c) : "Violation of: c is a condition string";
         return Condition.valueOf(c.replace('-', '_').toUpperCase());
     }
 
@@ -60,11 +60,51 @@ public final class Statement1Parse1 extends Statement1 {
     private static void parseIf(Queue<String> tokens, Statement s) {
         assert tokens != null : "Violation of: tokens is not null";
         assert s != null : "Violation of: s is not null";
-        assert tokens.length() > 0 && tokens.front().equals("IF") : ""
-                + "Violation of: <\"IF\"> is proper prefix of tokens";
+        assert tokens.length() > 0 && tokens.front().equals("IF")
+                : "" + "Violation of: <\"IF\"> is proper prefix of tokens";
 
-        // TODO - fill in body
+        tokens.dequeue(); // IF
 
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && Tokenizer.isCondition(tokens.front()),
+                "Expected condition");
+        Condition condition = parseCondition(tokens.dequeue());
+
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && tokens.front().equals("THEN"), "Expected THEN");
+        tokens.dequeue(); // THEN
+
+        Statement thenBlock = new Statement1Parse1();
+        thenBlock.parseBlock(tokens);
+
+        if (tokens.length() > 0 && tokens.front().equals("ELSE")) {
+            tokens.dequeue(); // ELSE
+
+            Statement elseBlock = new Statement1Parse1();
+            elseBlock.parseBlock(tokens);
+
+            Reporter.assertElseFatalError(
+                    tokens.length() > 1 && tokens.front().equals("END"),
+                    "Expected END IF");
+            tokens.dequeue(); // END
+
+            Reporter.assertElseFatalError(
+                    tokens.length() > 0 && tokens.front().equals("IF"), "Expected IF");
+            tokens.dequeue(); // IF
+
+            s.assembleIfElse(condition, thenBlock, elseBlock);
+        } else {
+            Reporter.assertElseFatalError(
+                    tokens.length() > 1 && tokens.front().equals("END"),
+                    "Expected END IF");
+            tokens.dequeue(); // END
+
+            Reporter.assertElseFatalError(
+                    tokens.length() > 0 && tokens.front().equals("IF"), "Expected IF");
+            tokens.dequeue(); // IF
+
+            s.assembleIf(condition, thenBlock);
+        }
     }
 
     /**
@@ -91,11 +131,32 @@ public final class Statement1Parse1 extends Statement1 {
     private static void parseWhile(Queue<String> tokens, Statement s) {
         assert tokens != null : "Violation of: tokens is not null";
         assert s != null : "Violation of: s is not null";
-        assert tokens.length() > 0 && tokens.front().equals("WHILE") : ""
-                + "Violation of: <\"WHILE\"> is proper prefix of tokens";
+        assert tokens.length() > 0 && tokens.front().equals("WHILE")
+                : "" + "Violation of: <\"WHILE\"> is proper prefix of tokens";
 
-        // TODO - fill in body
+        tokens.dequeue(); // WHILE
 
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && Tokenizer.isCondition(tokens.front()),
+                "Expected condition");
+        Condition condition = parseCondition(tokens.dequeue());
+
+        Reporter.assertElseFatalError(tokens.length() > 0 && tokens.front().equals("DO"),
+                "Expected DO");
+        tokens.dequeue(); // DO
+
+        Statement body = new Statement1Parse1();
+        body.parseBlock(tokens);
+
+        Reporter.assertElseFatalError(tokens.length() > 1 && tokens.front().equals("END"),
+                "Expected END WHILE");
+        tokens.dequeue(); // END
+
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && tokens.front().equals("WHILE"), "Expected WHILE");
+        tokens.dequeue(); // WHILE
+
+        s.assembleWhile(condition, body);
     }
 
     /**
@@ -117,12 +178,11 @@ public final class Statement1Parse1 extends Statement1 {
     private static void parseCall(Queue<String> tokens, Statement s) {
         assert tokens != null : "Violation of: tokens is not null";
         assert s != null : "Violation of: s is not null";
-        assert tokens.length() > 0
-                && Tokenizer.isIdentifier(tokens.front()) : ""
-                        + "Violation of: identifier string is proper prefix of tokens";
+        assert tokens.length() > 0 && Tokenizer.isIdentifier(tokens.front())
+                : "" + "Violation of: identifier string is proper prefix of tokens";
 
-        // TODO - fill in body
-
+        String name = tokens.dequeue();
+        s.assembleCall(name);
     }
 
     /*
@@ -143,21 +203,35 @@ public final class Statement1Parse1 extends Statement1 {
     @Override
     public void parse(Queue<String> tokens) {
         assert tokens != null : "Violation of: tokens is not null";
-        assert tokens.length() > 0 : ""
-                + "Violation of: Tokenizer.END_OF_INPUT is a suffix of tokens";
+        assert tokens.length() > 0
+                : "" + "Violation of: Tokenizer.END_OF_INPUT is a suffix of tokens";
 
-        // TODO - fill in body
-
+        if (tokens.front().equals("IF")) {
+            parseIf(tokens, this);
+        } else if (tokens.front().equals("WHILE")) {
+            parseWhile(tokens, this);
+        } else if (Tokenizer.isIdentifier(tokens.front())) {
+            parseCall(tokens, this);
+        } else {
+            Reporter.assertElseFatalError(false, "Expected IF, WHILE, or call");
+        }
     }
 
     @Override
     public void parseBlock(Queue<String> tokens) {
         assert tokens != null : "Violation of: tokens is not null";
-        assert tokens.length() > 0 : ""
-                + "Violation of: Tokenizer.END_OF_INPUT is a suffix of tokens";
+        assert tokens.length() > 0
+                : "" + "Violation of: Tokenizer.END_OF_INPUT is a suffix of tokens";
 
-        // TODO - fill in body
+        this.clear();
 
+        while (tokens.length() > 0
+                && (tokens.front().equals("IF") || tokens.front().equals("WHILE")
+                        || Tokenizer.isIdentifier(tokens.front()))) {
+            Statement statement = new Statement1Parse1();
+            statement.parse(tokens);
+            this.addToBlock(this.lengthOfBlock(), statement);
+        }
     }
 
     /*

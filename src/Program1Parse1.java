@@ -19,14 +19,8 @@ import components.utilities.Tokenizer;
  */
 public final class Program1Parse1 extends Program1 {
 
-    /*
-     * Private members --------------------------------------------------------
-     */
-
     /**
-     * Parses a single BL instruction from {@code tokens} returning the
-     * instruction name as the value of the function and the body of the
-     * instruction in {@code body}.
+     * Parses one BL instruction definition.
      *
      * @param tokens
      *            the input tokens
@@ -35,58 +29,49 @@ public final class Program1Parse1 extends Program1 {
      * @return the instruction name
      * @replaces body
      * @updates tokens
-     * @requires <pre>
-     * [<"INSTRUCTION"> is a prefix of tokens]  and
-     *  [<Tokenizer.END_OF_INPUT> is a suffix of tokens]
-     * </pre>
-     * @ensures <pre>
-     * if [an instruction string is a proper prefix of #tokens]  and
-     *    [the beginning name of this instruction equals its ending name]  and
-     *    [the name of this instruction does not equal the name of a primitive
-     *     instruction in the BL language] then
-     *  parseInstruction = [name of instruction at start of #tokens]  and
-     *  body = [Statement corresponding to the block string that is the body of
-     *          the instruction string at start of #tokens]  and
-     *  #tokens = [instruction string at start of #tokens] * tokens
-     * else
-     *  [report an appropriate error message to the console and terminate client]
-     * </pre>
      */
     private static String parseInstruction(Queue<String> tokens, Statement body) {
         assert tokens != null : "Violation of: tokens is not null";
         assert body != null : "Violation of: body is not null";
         assert tokens.length() > 0 && tokens.front().equals("INSTRUCTION")
-                : "" + "Violation of: <\"INSTRUCTION\"> is proper prefix of tokens";
+                : "Violation of: INSTRUCTION is a prefix of tokens";
 
         tokens.dequeue(); // INSTRUCTION
 
-        String name = tokens.dequeue();
-        Reporter.assertElseFatalError(Tokenizer.isIdentifier(name),
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && Tokenizer.isIdentifier(tokens.front()),
                 "Expected instruction name");
+        String name = tokens.dequeue();
 
-        Reporter.assertElseFatalError(!name.equals("move") && !name.equals("turnleft")
-                && !name.equals("turnright") && !name.equals("infect")
-                && !name.equals("skip"), "Instruction name cannot be primitive");
+        String lowerName = name.toLowerCase();
+        Reporter.assertElseFatalError(
+                !lowerName.equals("move") && !lowerName.equals("turnleft")
+                        && !lowerName.equals("turnright") && !lowerName.equals("infect")
+                        && !lowerName.equals("skip"),
+                "Instruction name cannot be primitive");
 
-        String token = tokens.dequeue();
-        Reporter.assertElseFatalError(token.equals("IS"), "Expected IS");
+        Reporter.assertElseFatalError(tokens.length() > 0 && tokens.front().equals("IS"),
+                "Expected IS");
+        tokens.dequeue(); // IS
 
-        Statement1 parsedBody = new Statement1();
+        Statement parsedBody = new Statement1();
         parsedBody.parseBlock(tokens);
         body.transferFrom(parsedBody);
 
-        token = tokens.dequeue();
-        Reporter.assertElseFatalError(token.equals("END"), "Expected END");
+        Reporter.assertElseFatalError(tokens.length() > 0 && tokens.front().equals("END"),
+                "Expected END");
+        tokens.dequeue(); // END
 
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && Tokenizer.isIdentifier(tokens.front()),
+                "Expected closing instruction name");
         String closingName = tokens.dequeue();
+
         Reporter.assertElseFatalError(closingName.equals(name),
                 "Instruction names do not match");
 
         return name;
     }
-    /*
-     * Constructors -----------------------------------------------------------
-     */
 
     /**
      * No-argument constructor.
@@ -95,14 +80,11 @@ public final class Program1Parse1 extends Program1 {
         super();
     }
 
-    /*
-     * Public methods ---------------------------------------------------------
-     */
-
     @Override
     public void parse(SimpleReader in) {
         assert in != null : "Violation of: in is not null";
         assert in.isOpen() : "Violation of: in.is_open";
+
         Queue<String> tokens = Tokenizer.tokens(in);
         this.parse(tokens);
     }
@@ -110,92 +92,88 @@ public final class Program1Parse1 extends Program1 {
     @Override
     public void parse(Queue<String> tokens) {
         assert tokens != null : "Violation of: tokens is not null";
-        assert tokens.length() > 0
-                : "" + "Violation of: Tokenizer.END_OF_INPUT is a suffix of tokens";
 
-        String token = tokens.dequeue();
-        Reporter.assertElseFatalError(token.equals("PROGRAM"), "Expected PROGRAM");
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && tokens.front().equals("PROGRAM"),
+                "Expected PROGRAM");
+        tokens.dequeue(); // PROGRAM
 
-        String programName = tokens.dequeue();
-        Reporter.assertElseFatalError(Tokenizer.isIdentifier(programName),
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && Tokenizer.isIdentifier(tokens.front()),
                 "Expected program name");
+        String programName = tokens.dequeue();
 
-        token = tokens.dequeue();
-        Reporter.assertElseFatalError(token.equals("IS"), "Expected IS");
+        Reporter.assertElseFatalError(tokens.length() > 0 && tokens.front().equals("IS"),
+                "Expected IS");
+        tokens.dequeue(); // IS
 
         Program parsed = new Program1();
         parsed.setName(programName);
-
         Map<String, Statement> context = parsed.newContext();
 
-        while (tokens.front().equals("INSTRUCTION")) {
+        while (tokens.length() > 0 && tokens.front().equals("INSTRUCTION")) {
             Statement body = new Statement1();
             String instructionName = parseInstruction(tokens, body);
 
             Reporter.assertElseFatalError(!context.hasKey(instructionName),
                     "Duplicate instruction name");
-
             context.add(instructionName, body);
         }
 
         parsed.swapContext(context);
 
-        token = tokens.dequeue();
-        Reporter.assertElseFatalError(token.equals("BEGIN"), "Expected BEGIN");
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && tokens.front().equals("BEGIN"), "Expected BEGIN");
+        tokens.dequeue(); // BEGIN
 
         Statement mainBody = new Statement1();
         mainBody.parseBlock(tokens);
         parsed.swapBody(mainBody);
 
-        token = tokens.dequeue();
-        Reporter.assertElseFatalError(token.equals("END"), "Expected END");
+        Reporter.assertElseFatalError(tokens.length() > 0 && tokens.front().equals("END"),
+                "Expected END");
+        tokens.dequeue(); // END
 
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && Tokenizer.isIdentifier(tokens.front()),
+                "Expected closing program name");
         String closingName = tokens.dequeue();
+
         Reporter.assertElseFatalError(closingName.equals(programName),
                 "Program names do not match");
 
-        token = tokens.dequeue();
-        Reporter.assertElseFatalError(token.equals(Tokenizer.END_OF_INPUT),
+        Reporter.assertElseFatalError(
+                tokens.length() > 0 && tokens.front().equals(Tokenizer.END_OF_INPUT),
                 "Unexpected extra input");
+        tokens.dequeue(); // END_OF_INPUT
 
         this.transferFrom(parsed);
     }
-
-    /*
-     * Main test method -------------------------------------------------------
-     */
 
     /**
      * Main method.
      *
      * @param args
-     *            the command line arguments
+     *            command-line arguments
      */
     public static void main(String[] args) {
         SimpleReader in = new SimpleReader1L();
         SimpleWriter out = new SimpleWriter1L();
-        /*
-         * Get input file name
-         */
+
         out.print("Enter valid BL program file name: ");
         String fileName = in.nextLine();
-        /*
-         * Parse input file
-         */
+
         out.println("*** Parsing input file ***");
         Program p = new Program1Parse1();
         SimpleReader file = new SimpleReader1L(fileName);
         Queue<String> tokens = Tokenizer.tokens(file);
         file.close();
         p.parse(tokens);
-        /*
-         * Pretty print the program
-         */
+
         out.println("*** Pretty print of parsed program ***");
         p.prettyPrint(out);
 
         in.close();
         out.close();
     }
-
 }
