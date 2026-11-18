@@ -12,7 +12,8 @@ import components.utilities.Tokenizer;
 /**
  * JUnit test fixture for {@code Program}'s {@code parse} method.
  *
- * @author Put your name here
+ * @author Andrew Pavel
+ * @author Kaleb Agbobli
  *
  */
 public abstract class ProgramTest {
