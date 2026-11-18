@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import components.program.Program;
 import components.queue.Queue;
+import components.queue.Queue1L;
 import components.simplereader.SimpleReader;
 import components.simplereader.SimpleReader1L;
 import components.utilities.Tokenizer;
@@ -88,7 +89,94 @@ public abstract class ProgramTest {
         pTest.parse(tokens);
     }
 
-    // TODO - add more test cases for valid inputs
-    // TODO - add more test cases for as many distinct syntax errors as possible
+    /*
+     * Tests for project
+     */
+
+    private Queue<String> createTokens(String... sourceTokens) {
+        Queue<String> tokens = new Queue1L<>();
+        for (String token : sourceTokens) {
+            tokens.enqueue(token);
+        }
+        tokens.enqueue(Tokenizer.END_OF_INPUT);
+        return tokens;
+    }
+
+    private void assertValid(String... sourceTokens) {
+        Program pRef = this.constructorRef();
+        pRef.parse(this.createTokens(sourceTokens));
+        Program pTest = this.constructorTest();
+        pTest.parse(this.createTokens(sourceTokens));
+        assertEquals(pRef, pTest);
+    }
+
+    @Test
+    public final void testParseValidNoInstructions() {
+        this.assertValid("PROGRAM", "P", "IS", "BEGIN", "move", "END", "P");
+    }
+
+    @Test
+    public final void testParseValidOneInstruction() {
+        this.assertValid("PROGRAM", "P", "IS", "INSTRUCTION", "foo", "IS", "move", "END",
+                "foo", "BEGIN", "foo", "END", "P");
+    }
+
+    @Test
+    public final void testParseValidMultipleInstructions() {
+        this.assertValid("PROGRAM", "P", "IS", "INSTRUCTION", "foo", "IS", "move", "END",
+                "foo", "INSTRUCTION", "bar", "IS", "skip", "END", "bar", "BEGIN", "foo",
+                "bar", "END", "P");
+    }
+
+    @Test(expected = RuntimeException.class)
+    public final void testParseMissingProgramKeyword() {
+        this.constructorTest()
+                .parse(this.createTokens("P", "IS", "BEGIN", "move", "END", "P"));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public final void testParseMissingIdentifier() {
+        this.constructorTest()
+                .parse(this.createTokens("PROGRAM", "IS", "BEGIN", "move", "END", "P"));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public final void testParseMissingIs() {
+        this.constructorTest()
+                .parse(this.createTokens("PROGRAM", "P", "BEGIN", "move", "END", "P"));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public final void testParseMissingBegin() {
+        this.constructorTest()
+                .parse(this.createTokens("PROGRAM", "P", "IS", "move", "END", "P"));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public final void testParseMismatchedProgramNames() {
+        this.constructorTest().parse(
+                this.createTokens("PROGRAM", "P", "IS", "BEGIN", "move", "END", "Q"));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public final void testParseDuplicateInstructionNames() {
+        this.constructorTest()
+                .parse(this.createTokens("PROGRAM", "P", "IS", "INSTRUCTION", "foo", "IS",
+                        "move", "END", "foo", "INSTRUCTION", "foo", "IS", "skip", "END",
+                        "foo", "BEGIN", "foo", "END", "P"));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public final void testParseMismatchedInstructionNames() {
+        this.constructorTest()
+                .parse(this.createTokens("PROGRAM", "P", "IS", "INSTRUCTION", "foo", "IS",
+                        "move", "END", "bar", "BEGIN", "move", "END", "P"));
+    }
+
+    @Test(expected = RuntimeException.class)
+    public final void testParseUnexpectedTrailingInput() {
+        this.constructorTest().parse(this.createTokens("PROGRAM", "P", "IS", "BEGIN",
+                "move", "END", "P", "extra"));
+    }
 
 }
